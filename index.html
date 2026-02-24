@@ -3,217 +3,270 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Calendaer</title>
+<title>My Calendar</title>
 
 <style>
-body {
+:root{
+  --bg:#f2f2f7;
+  --text:#111;
+  --cardText:#111;
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#000;
+    --text:#fff;
+    --cardText:#000;
+  }
+}
+
+body{
   margin:0;
-  font-family:-apple-system, BlinkMacSystemFont;
-  background:#f2f2f7;
-  padding:20px;
-}
-
-h1 {
-  text-align:center;
-  margin-bottom:5px;
-}
-
-.top-bar {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.mode-title {
-  text-align:center;
-  font-weight:600;
-  margin-bottom:10px;
-}
-
-button {
-  padding:10px;
-  border-radius:12px;
-  border:none;
-  font-weight:600;
-}
-
-input, textarea {
-  width:100%;
-  padding:10px;
-  border-radius:10px;
-  border:1px solid #ccc;
-  margin-bottom:10px;
-  font-size:16px;
-  box-sizing:border-box;
-}
-
-textarea {
-  resize:none;
-  height:80px;
-}
-
-.card {
-  border-radius:20px;
-  padding:20px;
-  margin-bottom:15px;
-  color:white;
-  cursor:pointer;
+  font-family:-apple-system,BlinkMacSystemFont;
+  background:var(--bg);
+  color:var(--text);
   transition:0.3s;
 }
 
-.card.expanded {
-  transform:scale(1.02);
+header{
+  padding:20px;
 }
 
-.card small {
-  opacity:0.8;
+.top-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:20px;
+  font-weight:600;
 }
 
-.detail {
+.today{
+  margin-top:6px;
+  font-size:14px;
+  opacity:0.6;
+}
+
+.history-btn{
+  font-size:20px;
+  cursor:pointer;
+}
+
+.container{
+  padding:15px;
+}
+
+.card{
+  border-radius:22px;
+  padding:18px;
+  margin-bottom:14px;
+  transition:all 0.35s ease;
+  overflow:hidden;
+}
+
+.card-title{
+  font-weight:600;
+  font-size:16px;
+}
+
+.card-time{
+  font-size:13px;
+  opacity:0.7;
+}
+
+.card-body{
+  max-height:0;
+  overflow:hidden;
+  transition:max-height 0.4s ease;
+  margin-top:0;
+  font-size:14px;
+}
+
+.card.expanded .card-body{
+  max-height:200px;
+  margin-top:12px;
+}
+
+.delete-btn{
   margin-top:10px;
+  color:#ff3b30;
+  font-size:13px;
+  cursor:pointer;
+}
+
+.fab{
+  position:fixed;
+  bottom:25px;
+  right:25px;
+  width:58px;
+  height:58px;
+  border-radius:50%;
+  background:#007aff;
+  color:white;
+  font-size:30px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  cursor:pointer;
+}
+
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
   display:none;
+  justify-content:center;
+  align-items:center;
 }
 
-.card.expanded .detail {
-  display:block;
-}
-
-.delete-btn {
+.modal-content{
   background:white;
-  color:black;
-  margin-top:10px;
+  width:90%;
+  border-radius:24px;
+  padding:22px;
+}
+
+input,textarea,select{
+  width:100%;
+  padding:12px;
+  margin-bottom:12px;
+  border-radius:14px;
+  border:1px solid #ddd;
+  font-size:14px;
+  box-sizing:border-box;
+}
+
+.save-btn{
+  width:100%;
+  padding:13px;
+  border:none;
+  border-radius:16px;
+  background:#007aff;
+  color:white;
+  font-size:15px;
+}
+
+.hidden{
+  display:none;
 }
 </style>
 </head>
+
 <body>
 
-<div class="top-bar">
-  <h1>Calendaer</h1>
-  <button onclick="togglePast()">🗂️</button>
+<header>
+  <div class="top-row">
+    일정
+    <div class="history-btn" onclick="togglePast()">🕘</div>
+  </div>
+  <div class="today" id="todayDate"></div>
+</header>
+
+<div class="container" id="activeList"></div>
+<div class="container hidden" id="pastList"></div>
+
+<div class="fab" onclick="openModal()">+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h3>새 일정</h3>
+    <input type="text" id="title" placeholder="제목">
+    <input type="date" id="date">
+    <input type="time" id="time">
+    <textarea id="memo" placeholder="메모"></textarea>
+    <button class="save-btn" onclick="saveEvent()">저장</button>
+  </div>
 </div>
-
-<div id="modeTitle" class="mode-title"></div>
-
-<div>
-  <label>날짜 선택</label>
-  <input type="date" id="date">
-  
-  <label>시간 선택 (24시간제)</label>
-  <input type="time" id="time">
-  
-  <label>제목</label>
-  <input type="text" id="title" placeholder="일정 제목">
-  
-  <label>메모</label>
-  <textarea id="memo" placeholder="메모 입력"></textarea>
-  
-  <button onclick="addSchedule()">추가</button>
-</div>
-
-<hr>
-
-<div id="scheduleList"></div>
 
 <script>
-let schedules = JSON.parse(localStorage.getItem("schedules") || "[]");
-let showPast = false;
+let events = JSON.parse(localStorage.getItem("events") || "[]");
 
-const colors = [
-"#0A84FF","#30D158","#FF9F0A","#FF375F",
-"#BF5AF2","#64D2FF","#FF453A","#32D74B"
+const colors=[
+"#FFD6E0","#FFE5B4","#FFF3B0","#E0F7FA","#D0F0C0",
+"#E8EAF6","#F3E5F5","#FDE2E4","#E4F9F5","#F9FBE7",
+"#FCE4EC","#E1F5FE","#FFF8E1","#EDE7F6","#E8F5E9"
 ];
 
-function randomColor(){
-  return colors[Math.floor(Math.random()*colors.length)];
-}
-
-function save(){
-  localStorage.setItem("schedules", JSON.stringify(schedules));
-}
-
-function addSchedule(){
-  const date = document.getElementById("date").value;
-  const time = document.getElementById("time").value;
-  const title = document.getElementById("title").value;
-  const memo = document.getElementById("memo").value;
-
-  if(!date || !time || !title) return;
-
-  schedules.push({
-    id:Date.now(),
-    date,time,title,memo,
-    color:randomColor()
+function setToday(){
+  const now=new Date();
+  const formatted=now.toLocaleDateString("ko-KR",{
+    year:"numeric",
+    month:"long",
+    day:"numeric",
+    weekday:"long"
   });
-
-  save();
-  render();
+  document.getElementById("todayDate").innerText=formatted;
 }
 
-function deleteSchedule(id){
-  schedules = schedules.filter(s=>s.id!==id);
-  save();
-  render();
-}
-
-function togglePast(){
-  showPast = !showPast;
-  render();
+function saveStorage(){
+  localStorage.setItem("events",JSON.stringify(events));
 }
 
 function render(){
-  const list = document.getElementById("scheduleList");
-  const modeTitle = document.getElementById("modeTitle");
-  list.innerHTML="";
+  const now=new Date();
+  const active=document.getElementById("activeList");
+  const past=document.getElementById("pastList");
+  active.innerHTML="";
+  past.innerHTML="";
 
-  const now = new Date();
-  const todayString = now.toLocaleDateString("ko-KR", {
-    year:"numeric", month:"long", day:"numeric", weekday:"long"
+  events.sort((a,b)=>{
+    return new Date(a.date+"T"+a.time) - new Date(b.date+"T"+b.time);
   });
 
-  if(showPast){
-    modeTitle.innerText="지난 일정";
-  } else {
-    modeTitle.innerText=todayString;
-  }
+  events.forEach((e,i)=>{
+    const eventDate=new Date(e.date+"T"+e.time);
+    const isPast=eventDate<now;
 
-  schedules
-  .sort((a,b)=> new Date(a.date+" "+a.time) - new Date(b.date+" "+b.time))
-  .forEach(s=>{
-    const scheduleDate = new Date(s.date+" "+s.time);
-    const isPast = scheduleDate < now;
-
-    if(showPast !== isPast) return;
-
-    const remainMs = scheduleDate - now;
-    let remainText="";
-    if(!isPast){
-      const hours = Math.floor(remainMs/1000/60/60);
-      remainText = ` · ${hours}시간 남음`;
-    }
-
-    const card = document.createElement("div");
+    const card=document.createElement("div");
     card.className="card";
-    card.style.background=s.color;
+    card.style.background=e.color;
+    card.style.color="var(--cardText)";
+    card.onclick=()=>card.classList.toggle("expanded");
 
     card.innerHTML=`
-      <div>
-        <strong>${s.time}</strong> ${s.title}
-        <small>${remainText}</small>
-      </div>
-      <div class="detail">
-        <p>${s.memo||""}</p>
-        <button class="delete-btn" onclick="event.stopPropagation();deleteSchedule(${s.id})">삭제</button>
+      <div class="card-title">${e.title}</div>
+      <div class="card-time">${e.date} ${e.time}</div>
+      <div class="card-body">
+        ${e.memo||""}
+        <div class="delete-btn" onclick="event.stopPropagation();deleteEvent(${i})">삭제</div>
       </div>
     `;
 
-    card.onclick=()=>{
-      card.classList.toggle("expanded");
-    };
-
-    list.appendChild(card);
+    if(isPast) past.appendChild(card);
+    else active.appendChild(card);
   });
 }
 
+function saveEvent(){
+  const title=title.value;
+  const date=date.value;
+  const time=time.value;
+  const memo=memo.value;
+
+  if(!title||!date||!time) return;
+
+  const color=colors[Math.floor(Math.random()*colors.length)];
+
+  events.push({title,date,time,memo,color});
+  saveStorage();
+  modal.style.display="none";
+  render();
+}
+
+function deleteEvent(i){
+  events.splice(i,1);
+  saveStorage();
+  render();
+}
+
+function openModal(){
+  modal.style.display="flex";
+}
+
+function togglePast(){
+  pastList.classList.toggle("hidden");
+}
+
+setToday();
 render();
 </script>
 
