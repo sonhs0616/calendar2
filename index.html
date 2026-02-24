@@ -12,13 +12,18 @@ background:#f2f2f7;
 font-family:-apple-system,BlinkMacSystemFont,sans-serif;
 }
 
+/* HEADER */
+
 header{
-padding:30px 20px 10px 20px;
-font-size:28px;
-font-weight:700;
+padding:30px 20px;
 display:flex;
 justify-content:space-between;
 align-items:center;
+}
+
+.title{
+font-size:26px;
+font-weight:700;
 }
 
 .nav{
@@ -39,6 +44,24 @@ background:black;
 color:white;
 }
 
+.wallet-actions{
+display:flex;
+gap:8px;
+}
+
+.icon-btn{
+width:36px;
+height:36px;
+border-radius:50%;
+border:none;
+background:black;
+color:white;
+cursor:pointer;
+font-size:16px;
+}
+
+/* VIEW */
+
 .view{
 display:none;
 }
@@ -47,7 +70,7 @@ display:none;
 display:block;
 }
 
-/* Wallet */
+/* WALLET */
 
 .stack{
 padding:10px 0 120px 0;
@@ -63,8 +86,14 @@ transition:.4s cubic-bezier(.22,.61,.36,1);
 cursor:pointer;
 }
 
-.card.active{
-transform:scale(1.05);
+.card h3{
+margin:0;
+}
+
+.date,.time{
+font-size:13px;
+opacity:.6;
+margin-top:4px;
 }
 
 .memo{
@@ -76,12 +105,57 @@ margin-top:10px;
 font-size:14px;
 }
 
+.card.active{
+transform:scale(1.05);
+}
+
 .card.active .memo{
 opacity:1;
 max-height:150px;
 }
 
-/* Dashboard */
+.form-panel{
+position:fixed;
+bottom:-100%;
+left:0;
+right:0;
+background:white;
+border-radius:30px 30px 0 0;
+padding:25px;
+box-shadow:0 -10px 40px rgba(0,0,0,.15);
+transition:.4s;
+}
+
+.form-panel.show{
+bottom:0;
+}
+
+.form-panel input,
+.form-panel textarea{
+width:100%;
+margin-bottom:10px;
+padding:10px;
+border-radius:12px;
+border:1px solid #ddd;
+font-size:14px;
+}
+
+.form-panel textarea{
+height:80px;
+resize:none;
+}
+
+.form-panel button{
+width:100%;
+padding:10px;
+border:none;
+border-radius:12px;
+background:black;
+color:white;
+cursor:pointer;
+}
+
+/* DASHBOARD */
 
 .dashboard{
 padding:20px;
@@ -106,10 +180,10 @@ margin:0 0 10px 0;
 font-size:16px;
 }
 
-.todo-item, .check-item{
+.todo-item,.check-item{
 display:flex;
-align-items:center;
 justify-content:space-between;
+align-items:center;
 margin-bottom:8px;
 font-size:14px;
 }
@@ -130,7 +204,7 @@ font-size:14px;
 margin-top:4px;
 }
 
-input[type="text"]{
+input.small-input{
 width:100%;
 padding:6px;
 border-radius:10px;
@@ -155,19 +229,25 @@ cursor:pointer;
 <body>
 
 <header>
-<span>Calendar</span>
+<div class="title">Calendar</div>
+
 <div class="nav">
 <button onclick="switchView('wallet')" id="walletBtn" class="active">Wallet</button>
 <button onclick="switchView('dashboard')" id="dashBtn">Dashboard</button>
 </div>
+
+<div class="wallet-actions" id="walletActions">
+<button class="icon-btn" onclick="togglePast()">⏱</button>
+<button class="icon-btn" onclick="openForm()">+</button>
+</div>
 </header>
 
-<!-- Wallet View -->
+<!-- WALLET -->
 <div id="walletView" class="view active">
 <div class="stack" id="stack"></div>
 </div>
 
-<!-- Dashboard View -->
+<!-- DASHBOARD -->
 <div id="dashboardView" class="view">
 <div class="dashboard">
 
@@ -184,18 +264,27 @@ cursor:pointer;
 <div class="widget">
 <h3>할일</h3>
 <div id="todoList"></div>
-<input type="text" id="todoInput" placeholder="할일 추가">
+<input class="small-input" id="todoInput" placeholder="할일 추가">
 <button class="small" onclick="addTodo()">추가</button>
 </div>
 
 <div class="widget full">
 <h3>오늘 체크리스트</h3>
 <div id="checkList"></div>
-<input type="text" id="checkInput" placeholder="체크 항목 추가">
+<input class="small-input" id="checkInput" placeholder="체크 항목 추가">
 <button class="small" onclick="addCheck()">추가</button>
 </div>
 
 </div>
+</div>
+
+<!-- FORM -->
+<div class="form-panel" id="formPanel">
+<input type="text" id="titleInput" placeholder="일정 제목">
+<input type="date" id="dateInput">
+<input type="time" id="timeInput">
+<textarea id="memoInput" placeholder="메모"></textarea>
+<button onclick="saveCard()">저장</button>
 </div>
 
 <script>
@@ -205,36 +294,103 @@ const colors=["#e6edf7","#ece7f6","#f6e9e9","#e8f3f0","#f4f1e8"];
 let cards=JSON.parse(localStorage.getItem("cards"))||[];
 let todos=JSON.parse(localStorage.getItem("todos"))||[];
 let dailyChecklist=JSON.parse(localStorage.getItem("dailyChecklist"))||[];
+let showPast=false;
 
+/* 저장 */
 function saveAll(){
 localStorage.setItem("cards",JSON.stringify(cards));
 localStorage.setItem("todos",JSON.stringify(todos));
 localStorage.setItem("dailyChecklist",JSON.stringify(dailyChecklist));
 }
 
+/* 7일 자동 정리 */
+function cleanupOldItems(){
+const now=new Date();
+const seven=7*24*60*60*1000;
+
+/* 완료된 할일 7일 후 삭제 */
+todos=todos.filter(t=>{
+if(!t.done)return true;
+if(!t.completedAt)return true;
+return (now-new Date(t.completedAt))<seven;
+});
+
+/* 지난 일정 7일 후 삭제 */
+cards=cards.filter(c=>{
+const eventDate=new Date(c.date+"T"+(c.time||"00:00"));
+return (now-eventDate)<seven;
+});
+}
+
+/* VIEW 전환 */
 function switchView(view){
 document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
 document.getElementById(view+"View").classList.add("active");
+
 document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
 document.getElementById(view==="wallet"?"walletBtn":"dashBtn").classList.add("active");
+
+document.getElementById("walletActions").style.display=
+view==="wallet"?"flex":"none";
+
 renderAll();
 }
 
+/* WALLET */
 function renderWallet(){
 const stack=document.getElementById("stack");
 stack.innerHTML="";
-cards.forEach((card,index)=>{
+
+let filtered=cards.filter(c=>{
+const isPast=new Date(c.date+"T"+(c.time||"00:00"))<new Date();
+return showPast?isPast:!isPast;
+});
+
+filtered.forEach(card=>{
 const div=document.createElement("div");
 div.className="card";
 div.style.background=card.color;
-div.innerHTML=`<h3>${card.title}</h3>
-<div>${card.date}</div>
-<div class="memo">${card.memo||""}</div>`;
+div.innerHTML=`
+<h3>${card.title}</h3>
+<div class="date">${card.date}</div>
+<div class="time">${card.time||""}</div>
+<div class="memo">${card.memo||""}</div>
+`;
 div.onclick=()=>div.classList.toggle("active");
 stack.appendChild(div);
 });
 }
 
+function togglePast(){
+showPast=!showPast;
+renderWallet();
+}
+
+function openForm(){
+document.getElementById("formPanel").classList.add("show");
+}
+
+function saveCard(){
+const title=document.getElementById("titleInput").value.trim();
+const date=document.getElementById("dateInput").value;
+const time=document.getElementById("timeInput").value||"00:00";
+const memo=document.getElementById("memoInput").value.trim();
+if(!title||!date)return;
+
+cards.unshift({
+title,date,time,memo,
+color:colors[Math.floor(Math.random()*colors.length)]
+});
+
+document.getElementById("formPanel").classList.remove("show");
+document.getElementById("titleInput").value="";
+document.getElementById("dateInput").value="";
+document.getElementById("timeInput").value="";
+document.getElementById("memoInput").value="";
+renderAll();
+}
+
+/* DASHBOARD */
 function renderDashboard(){
 updateClock();
 
@@ -269,11 +425,13 @@ checkList.innerHTML+=`
 }
 
 function renderAll(){
+cleanupOldItems();
 renderWallet();
 renderDashboard();
 saveAll();
 }
 
+/* TODO */
 function addTodo(){
 const val=document.getElementById("todoInput").value.trim();
 if(!val)return;
@@ -284,6 +442,11 @@ renderAll();
 
 function toggleTodo(i){
 todos[i].done=!todos[i].done;
+if(todos[i].done){
+todos[i].completedAt=new Date().toISOString();
+}else{
+delete todos[i].completedAt;
+}
 renderAll();
 }
 
@@ -300,6 +463,7 @@ dailyChecklist[i].done=!dailyChecklist[i].done;
 renderAll();
 }
 
+/* CLOCK */
 function updateClock(){
 const now=new Date();
 document.getElementById("clock").innerText=
