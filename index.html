@@ -10,7 +10,6 @@ body{
 margin:0;
 background:#f2f2f7;
 font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-overflow-x:hidden;
 }
 
 header{
@@ -42,7 +41,6 @@ font-size:18px;
 
 .stack{
 padding:10px 0 150px 0;
-transition:0.5s cubic-bezier(.22,.61,.36,1);
 }
 
 .card{
@@ -51,10 +49,9 @@ margin:0 auto 16px auto;
 border-radius:26px;
 padding:22px;
 box-sizing:border-box;
-transition:all .5s cubic-bezier(.22,.61,.36,1);
+transition:all .45s cubic-bezier(.22,.61,.36,1);
 cursor:pointer;
 position:relative;
-overflow:hidden;
 }
 
 .card h2{
@@ -76,7 +73,24 @@ line-height:1.5;
 opacity:0;
 max-height:0;
 overflow:hidden;
-transition:all .4s ease;
+transition:.4s;
+}
+
+.time{
+font-size:13px;
+margin-top:4px;
+opacity:.7;
+}
+
+.delete-btn{
+margin-top:18px;
+padding:8px 14px;
+border-radius:14px;
+border:none;
+background:#ff3b30;
+color:white;
+font-size:13px;
+opacity:0;
 }
 
 .card.active{
@@ -88,6 +102,10 @@ margin-bottom:30px;
 .card.active .memo{
 opacity:1;
 max-height:300px;
+}
+
+.card.active .delete-btn{
+opacity:1;
 }
 
 .dimmed{
@@ -132,10 +150,6 @@ color:white;
 font-size:15px;
 }
 
-.hidden{
-display:none;
-}
-
 </style>
 </head>
 <body>
@@ -153,13 +167,14 @@ display:none;
 <div class="form-panel" id="formPanel">
 <input type="text" id="titleInput" placeholder="일정 제목">
 <input type="date" id="dateInput">
+<input type="time" id="timeInput">
 <textarea id="memoInput" placeholder="메모"></textarea>
 <button onclick="saveCard()">저장</button>
 </div>
 
 <script>
 
-const colors = [
+const colors=[
 "#e6edf7",
 "#ece7f6",
 "#f6e9e9",
@@ -167,24 +182,44 @@ const colors = [
 "#f4f1e8"
 ];
 
-let showPast = false;
-let activeIndex = null;
+let showPast=false;
+let activeIndex=null;
 
-let cards = [
-{title:"Workout",date:"2026-02-26",memo:"하체 + 유산소",color:colors[0]},
-{title:"Meeting",date:"2026-02-20",memo:"기획 회의",color:colors[1]},
-{title:"Presentation",date:"2026-02-10",memo:"발표 완료",color:colors[2]}
-];
+let cards=[];
 
-function isPast(date){
-return new Date(date) < new Date().setHours(0,0,0,0);
+function requestNotification(){
+if(Notification.permission!=="granted"){
+Notification.requestPermission();
+}
+}
+
+requestNotification();
+
+function scheduleNotification(card){
+if(Notification.permission!=="granted") return;
+
+const eventTime=new Date(card.date+"T"+card.time);
+const now=new Date();
+const delay=eventTime-now;
+
+if(delay>0){
+setTimeout(()=>{
+new Notification("일정 알림",{
+body:card.title+" 일정 시간입니다."
+});
+},delay);
+}
+}
+
+function isPast(date,time){
+return new Date(date+"T"+time) < new Date();
 }
 
 function render(){
 const stack=document.getElementById("stack");
 stack.innerHTML="";
 
-let filtered = cards.filter(c => showPast ? isPast(c.date) : !isPast(c.date));
+let filtered=cards.filter(c=>showPast?isPast(c.date,c.time):!isPast(c.date,c.time));
 
 filtered.forEach((card,index)=>{
 const div=document.createElement("div");
@@ -197,7 +232,9 @@ div.style.background=card.color;
 div.innerHTML=`
 <h2>${card.title}</h2>
 <div class="date">${card.date}</div>
+<div class="time">${card.time}</div>
 <div class="memo">${card.memo}</div>
+<button class="delete-btn" onclick="deleteCard(event, ${cards.indexOf(card)})">삭제</button>
 `;
 
 div.onclick=()=>toggleCard(index);
@@ -206,16 +243,19 @@ stack.appendChild(div);
 }
 
 function toggleCard(index){
-if(activeIndex===index){
-activeIndex=null;
-}else{
-activeIndex=index;
-}
+activeIndex=(activeIndex===index)?null:index;
 render();
 }
 
 function togglePast(){
 showPast=!showPast;
+activeIndex=null;
+render();
+}
+
+function deleteCard(event,index){
+event.stopPropagation();
+cards.splice(index,1);
 activeIndex=null;
 render();
 }
@@ -227,20 +267,26 @@ document.getElementById("formPanel").classList.add("show");
 function saveCard(){
 const title=document.getElementById("titleInput").value;
 const date=document.getElementById("dateInput").value;
+const time=document.getElementById("timeInput").value;
 const memo=document.getElementById("memoInput").value;
 
-if(!title||!date) return;
+if(!title||!date||!time) return;
 
-cards.unshift({
+const newCard={
 title,
 date,
+time,
 memo,
 color:colors[Math.floor(Math.random()*colors.length)]
-});
+};
+
+cards.unshift(newCard);
+scheduleNotification(newCard);
 
 document.getElementById("formPanel").classList.remove("show");
 document.getElementById("titleInput").value="";
 document.getElementById("dateInput").value="";
+document.getElementById("timeInput").value="";
 document.getElementById("memoInput").value="";
 render();
 }
