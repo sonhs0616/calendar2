@@ -6,173 +6,247 @@
 <title>Calendar</title>
 
 <style>
-body {
-  margin: 0;
-  background: #f2f2f7;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-  overflow-x: hidden;
+body{
+margin:0;
+background:#f2f2f7;
+font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+overflow-x:hidden;
 }
 
-header {
-  padding: 40px 20px 10px 20px;
-  font-size: 34px;
-  font-weight: 700;
+header{
+padding:40px 20px 10px 20px;
+font-size:34px;
+font-weight:700;
+display:flex;
+justify-content:space-between;
+align-items:center;
 }
 
-.add-btn {
-  position: fixed;
-  right: 20px;
-  top: 45px;
-  font-size: 26px;
-  background: black;
-  color: white;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  z-index: 10;
+.actions{
+display:flex;
+gap:10px;
 }
 
-.stack {
-  padding: 10px 0 150px 0;
+.icon-btn{
+width:40px;
+height:40px;
+border-radius:50%;
+display:flex;
+justify-content:center;
+align-items:center;
+cursor:pointer;
+background:#111;
+color:white;
+font-size:18px;
 }
 
-.card {
-  width: 90%;
-  height: 140px;
-  margin: 0 auto -90px auto;
-  border-radius: 28px;
-  padding: 22px;
-  box-sizing: border-box;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
-  transition: all 0.45s cubic-bezier(.25,.8,.25,1);
-  cursor: pointer;
-  position: relative;
-  background: white;
+.stack{
+padding:10px 0 150px 0;
+transition:0.5s cubic-bezier(.22,.61,.36,1);
 }
 
-.card h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
+.card{
+width:90%;
+margin:0 auto 16px auto;
+border-radius:26px;
+padding:22px;
+box-sizing:border-box;
+transition:all .5s cubic-bezier(.22,.61,.36,1);
+cursor:pointer;
+position:relative;
+overflow:hidden;
 }
 
-.card .date {
-  font-size: 14px;
-  opacity: 0.6;
-  margin-top: 6px;
+.card h2{
+margin:0;
+font-size:20px;
+font-weight:700;
 }
 
-.card.active {
-  margin: 20px auto;
-  height: auto;
-  z-index: 999;
-  transform: scale(1.02);
+.date{
+font-size:14px;
+opacity:.6;
+margin-top:6px;
 }
 
-.memo {
-  margin-top: 20px;
-  font-size: 14px;
-  line-height: 1.5;
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  transition: all 0.4s ease;
+.memo{
+margin-top:14px;
+font-size:14px;
+line-height:1.5;
+opacity:0;
+max-height:0;
+overflow:hidden;
+transition:all .4s ease;
 }
 
-.card.active .memo {
-  opacity: 1;
-  max-height: 300px;
+.card.active{
+transform:scale(1.04);
+margin-top:30px;
+margin-bottom:30px;
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.2);
-  backdrop-filter: blur(10px);
-  opacity: 0;
-  pointer-events: none;
-  transition: 0.4s;
+.card.active .memo{
+opacity:1;
+max-height:300px;
 }
 
-.overlay.show {
-  opacity: 1;
-  pointer-events: auto;
+.dimmed{
+opacity:.35;
+transform:translateY(20px);
+}
+
+.form-panel{
+position:fixed;
+bottom:-100%;
+left:0;
+right:0;
+background:white;
+border-radius:30px 30px 0 0;
+padding:25px;
+box-shadow:0 -10px 40px rgba(0,0,0,.15);
+transition:.5s cubic-bezier(.22,.61,.36,1);
+}
+
+.form-panel.show{
+bottom:0;
+}
+
+.form-panel input,
+.form-panel textarea{
+width:100%;
+margin-bottom:12px;
+padding:12px;
+border-radius:12px;
+border:1px solid #ddd;
+font-size:14px;
+box-sizing:border-box;
+}
+
+.form-panel button{
+width:100%;
+padding:12px;
+border-radius:14px;
+border:none;
+background:black;
+color:white;
+font-size:15px;
+}
+
+.hidden{
+display:none;
 }
 
 </style>
 </head>
 <body>
 
-<header>Calendar</header>
-<div class="add-btn" onclick="addCard()">+</div>
-<div class="overlay" id="overlay" onclick="closeCard()"></div>
+<header>
+<span>Calendar</span>
+<div class="actions">
+<div class="icon-btn" onclick="togglePast()">⏱</div>
+<div class="icon-btn" onclick="openForm()">+</div>
+</div>
+</header>
+
 <div class="stack" id="stack"></div>
+
+<div class="form-panel" id="formPanel">
+<input type="text" id="titleInput" placeholder="일정 제목">
+<input type="date" id="dateInput">
+<textarea id="memoInput" placeholder="메모"></textarea>
+<button onclick="saveCard()">저장</button>
+</div>
 
 <script>
 
-let cards = [
-  { title: "Workout", date: "2026-02-26", memo: "하체 + 유산소 30분", color: "#ffffff" },
-  { title: "Team Meeting", date: "2026-02-27", memo: "프로젝트 진행 상황 공유", color: "#ffffff" },
-  { title: "Presentation", date: "2026-02-28", memo: "발표 자료 최종 점검", color: "#ffffff" }
+const colors = [
+"#e6edf7",
+"#ece7f6",
+"#f6e9e9",
+"#e8f3f0",
+"#f4f1e8"
 ];
 
+let showPast = false;
 let activeIndex = null;
 
-function render() {
-  const stack = document.getElementById("stack");
-  stack.innerHTML = "";
+let cards = [
+{title:"Workout",date:"2026-02-26",memo:"하체 + 유산소",color:colors[0]},
+{title:"Meeting",date:"2026-02-20",memo:"기획 회의",color:colors[1]},
+{title:"Presentation",date:"2026-02-10",memo:"발표 완료",color:colors[2]}
+];
 
-  cards.forEach((card, index) => {
-    const div = document.createElement("div");
-    div.className = "card";
-    if (activeIndex === index) div.classList.add("active");
-
-    div.innerHTML = `
-      <h2>${card.title}</h2>
-      <div class="date">${card.date}</div>
-      <div class="memo">${card.memo}</div>
-    `;
-
-    div.onclick = () => openCard(index);
-    stack.appendChild(div);
-  });
+function isPast(date){
+return new Date(date) < new Date().setHours(0,0,0,0);
 }
 
-function openCard(index) {
-  activeIndex = index;
-  document.getElementById("overlay").classList.add("show");
-  render();
+function render(){
+const stack=document.getElementById("stack");
+stack.innerHTML="";
+
+let filtered = cards.filter(c => showPast ? isPast(c.date) : !isPast(c.date));
+
+filtered.forEach((card,index)=>{
+const div=document.createElement("div");
+div.className="card";
+if(activeIndex===index) div.classList.add("active");
+if(activeIndex!==null && activeIndex!==index) div.classList.add("dimmed");
+
+div.style.background=card.color;
+
+div.innerHTML=`
+<h2>${card.title}</h2>
+<div class="date">${card.date}</div>
+<div class="memo">${card.memo}</div>
+`;
+
+div.onclick=()=>toggleCard(index);
+stack.appendChild(div);
+});
 }
 
-function closeCard() {
-  activeIndex = null;
-  document.getElementById("overlay").classList.remove("show");
-  render();
+function toggleCard(index){
+if(activeIndex===index){
+activeIndex=null;
+}else{
+activeIndex=index;
+}
+render();
 }
 
-function addCard() {
-  const title = prompt("일정 제목");
-  const date = prompt("날짜 (YYYY-MM-DD)");
-  const memo = prompt("메모 내용");
-  if (!title || !date) return;
+function togglePast(){
+showPast=!showPast;
+activeIndex=null;
+render();
+}
 
-  cards.unshift({
-    title,
-    date,
-    memo: memo || "",
-    color: "#ffffff"
-  });
+function openForm(){
+document.getElementById("formPanel").classList.add("show");
+}
 
-  render();
+function saveCard(){
+const title=document.getElementById("titleInput").value;
+const date=document.getElementById("dateInput").value;
+const memo=document.getElementById("memoInput").value;
+
+if(!title||!date) return;
+
+cards.unshift({
+title,
+date,
+memo,
+color:colors[Math.floor(Math.random()*colors.length)]
+});
+
+document.getElementById("formPanel").classList.remove("show");
+document.getElementById("titleInput").value="";
+document.getElementById("dateInput").value="";
+document.getElementById("memoInput").value="";
+render();
 }
 
 render();
 
 </script>
-
 </body>
 </html>
