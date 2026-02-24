@@ -3,230 +3,175 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Calendaer</title>
+<title>Calendar</title>
 
 <style>
-body{
-  margin:0;
-  font-family:-apple-system,BlinkMacSystemFont;
-  background:#f2f2f7;
-  padding:20px;
+body {
+  margin: 0;
+  background: #f2f2f7;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-x: hidden;
 }
 
-.top{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+header {
+  padding: 40px 20px 10px 20px;
+  font-size: 34px;
+  font-weight: 700;
 }
 
-h1{
-  margin:0;
+.add-btn {
+  position: fixed;
+  right: 20px;
+  top: 45px;
+  font-size: 26px;
+  background: black;
+  color: white;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 10;
 }
 
-.mode-title{
-  text-align:center;
-  font-weight:600;
-  margin:10px 0 15px 0;
+.stack {
+  padding: 10px 0 150px 0;
 }
 
-input,textarea{
-  width:100%;
-  padding:10px;
-  border-radius:12px;
-  border:1px solid #ccc;
-  margin-bottom:10px;
-  font-size:16px;
-  box-sizing:border-box;
+.card {
+  width: 90%;
+  height: 140px;
+  margin: 0 auto -90px auto;
+  border-radius: 28px;
+  padding: 22px;
+  box-sizing: border-box;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+  transition: all 0.45s cubic-bezier(.25,.8,.25,1);
+  cursor: pointer;
+  position: relative;
+  background: white;
 }
 
-textarea{
-  resize:none;
-  height:80px;
+.card h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
 }
 
-button{
-  padding:10px;
-  border-radius:12px;
-  border:none;
-  font-weight:600;
+.card .date {
+  font-size: 14px;
+  opacity: 0.6;
+  margin-top: 6px;
 }
 
-.card{
-  border-radius:22px;
-  padding:18px;
-  margin-bottom:15px;
-  color:white;
-  cursor:pointer;
-  transition:0.25s ease;
+.card.active {
+  margin: 20px auto;
+  height: auto;
+  z-index: 999;
+  transform: scale(1.02);
 }
 
-.card.expanded{
-  transform:scale(1.02);
+.memo {
+  margin-top: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.4s ease;
 }
 
-.detail{
-  display:none;
-  margin-top:10px;
+.card.active .memo {
+  opacity: 1;
+  max-height: 300px;
 }
 
-.card.expanded .detail{
-  display:block;
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.2);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.4s;
 }
 
-.delete-btn{
-  background:white;
-  color:black;
-  margin-top:10px;
+.overlay.show {
+  opacity: 1;
+  pointer-events: auto;
 }
+
 </style>
 </head>
-
 <body>
 
-<div class="top">
-  <h1>Calendaer</h1>
-  <button onclick="togglePast()">🗂️</button>
-</div>
-
-<div id="modeTitle" class="mode-title"></div>
-
-<label>날짜 선택</label>
-<input type="date" id="date">
-
-<label>시간 선택 (24시간제)</label>
-<input type="time" id="time">
-
-<label>제목</label>
-<input type="text" id="title" placeholder="일정 제목">
-
-<label>메모</label>
-<textarea id="memo" placeholder="메모 입력"></textarea>
-
-<button onclick="addSchedule()">저장</button>
-
-<hr>
-
-<div id="scheduleList"></div>
+<header>Calendar</header>
+<div class="add-btn" onclick="addCard()">+</div>
+<div class="overlay" id="overlay" onclick="closeCard()"></div>
+<div class="stack" id="stack"></div>
 
 <script>
-let schedules = JSON.parse(localStorage.getItem("schedules") || "[]");
-let showPast = false;
 
-const colors = [
-"#0A84FF","#30D158","#FF9F0A","#FF375F",
-"#BF5AF2","#64D2FF","#FF453A","#32D74B"
+let cards = [
+  { title: "Workout", date: "2026-02-26", memo: "하체 + 유산소 30분", color: "#ffffff" },
+  { title: "Team Meeting", date: "2026-02-27", memo: "프로젝트 진행 상황 공유", color: "#ffffff" },
+  { title: "Presentation", date: "2026-02-28", memo: "발표 자료 최종 점검", color: "#ffffff" }
 ];
 
-function randomColor(){
-  return colors[Math.floor(Math.random()*colors.length)];
-}
+let activeIndex = null;
 
-function save(){
-  localStorage.setItem("schedules", JSON.stringify(schedules));
-}
+function render() {
+  const stack = document.getElementById("stack");
+  stack.innerHTML = "";
 
-function addSchedule(){
-  const date = document.getElementById("date").value;
-  const time = document.getElementById("time").value;
-  const title = document.getElementById("title").value.trim();
-  const memo = document.getElementById("memo").value.trim();
+  cards.forEach((card, index) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    if (activeIndex === index) div.classList.add("active");
 
-  if(!date || !time || !title){
-    alert("날짜, 시간, 제목은 필수입니다.");
-    return;
-  }
-
-  schedules.push({
-    id:Date.now(),
-    date,
-    time,
-    title,
-    memo,
-    color:randomColor()
-  });
-
-  save();
-  clearInput();
-  render();
-}
-
-function clearInput(){
-  document.getElementById("title").value="";
-  document.getElementById("memo").value="";
-}
-
-function deleteSchedule(id){
-  schedules = schedules.filter(s=>s.id!==id);
-  save();
-  render();
-}
-
-function togglePast(){
-  showPast = !showPast;
-  render();
-}
-
-function render(){
-  const list = document.getElementById("scheduleList");
-  const modeTitle = document.getElementById("modeTitle");
-  list.innerHTML="";
-
-  const now = new Date();
-  const todayText = now.toLocaleDateString("ko-KR",{
-    year:"numeric",
-    month:"long",
-    day:"numeric",
-    weekday:"long"
-  });
-
-  modeTitle.innerText = showPast ? "지난 일정" : todayText;
-
-  schedules
-  .sort((a,b)=>{
-    const da = new Date(a.date+"T"+a.time);
-    const db = new Date(b.date+"T"+b.time);
-    return da - db;
-  })
-  .forEach(s=>{
-    const scheduleDate = new Date(s.date+"T"+s.time);
-    const isPast = scheduleDate < now;
-
-    if(showPast !== isPast) return;
-
-    let remainText="";
-    if(!isPast){
-      const diff = scheduleDate - now;
-      const hours = Math.floor(diff/1000/60/60);
-      remainText = hours>0 ? ` · ${hours}시간 남음` : " · 곧 시작";
-    }
-
-    const card = document.createElement("div");
-    card.className="card";
-    card.style.background=s.color;
-
-    card.innerHTML=`
-      <div>
-        <strong>${s.time}</strong> ${s.title}
-        <small>${remainText}</small>
-      </div>
-      <div class="detail">
-        <p>${s.memo || ""}</p>
-        <button class="delete-btn"
-          onclick="event.stopPropagation();deleteSchedule(${s.id})">
-          삭제
-        </button>
-      </div>
+    div.innerHTML = `
+      <h2>${card.title}</h2>
+      <div class="date">${card.date}</div>
+      <div class="memo">${card.memo}</div>
     `;
 
-    card.onclick=()=>{
-      card.classList.toggle("expanded");
-    };
-
-    list.appendChild(card);
+    div.onclick = () => openCard(index);
+    stack.appendChild(div);
   });
+}
+
+function openCard(index) {
+  activeIndex = index;
+  document.getElementById("overlay").classList.add("show");
+  render();
+}
+
+function closeCard() {
+  activeIndex = null;
+  document.getElementById("overlay").classList.remove("show");
+  render();
+}
+
+function addCard() {
+  const title = prompt("일정 제목");
+  const date = prompt("날짜 (YYYY-MM-DD)");
+  const memo = prompt("메모 내용");
+  if (!title || !date) return;
+
+  cards.unshift({
+    title,
+    date,
+    memo: memo || "",
+    color: "#ffffff"
+  });
+
+  render();
 }
 
 render();
+
 </script>
 
 </body>
