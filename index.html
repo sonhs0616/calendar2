@@ -1,210 +1,241 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calendar</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>My Calendar</title>
 
 <style>
 body{
-margin:0;
-font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-background:#f5f5f7;
-padding:20px;
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont;
+  background:#f2f2f7;
 }
 
-h1{
-font-size:32px;
-margin-bottom:20px;
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:20px;
+  font-weight:600;
+  font-size:20px;
+}
+
+.menu-btn{
+  font-size:22px;
+  cursor:pointer;
+}
+
+.container{
+  padding:15px;
 }
 
 .card{
-border-radius:28px;
-padding:20px;
-margin-bottom:16px;
-box-shadow:0 10px 25px rgba(0,0,0,0.08);
-cursor:pointer;
-transition:0.2s;
+  border-radius:20px;
+  padding:16px;
+  margin-bottom:12px;
+  transition:0.25s;
 }
 
-.card:hover{
-transform:scale(1.02);
+.card-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:pointer;
 }
 
-.time-row{
-display:flex;
-justify-content:space-between;
-font-size:14px;
-opacity:0.7;
+.card-title{
+  font-weight:600;
+  font-size:16px;
 }
 
-.title{
-font-size:22px;
-font-weight:600;
-margin-top:8px;
+.card-time{
+  font-size:13px;
+  opacity:0.6;
 }
 
-.add-btn{
-position:fixed;
-bottom:30px;
-right:30px;
-background:black;
-color:white;
-border-radius:50%;
-width:60px;
-height:60px;
-font-size:30px;
-border:none;
+.card-body{
+  margin-top:12px;
+  display:none;
+  font-size:14px;
+  opacity:0.85;
+}
+
+.delete-btn{
+  margin-top:12px;
+  color:#ff3b30;
+  font-size:13px;
+  cursor:pointer;
+}
+
+.fab{
+  position:fixed;
+  bottom:25px;
+  right:25px;
+  width:58px;
+  height:58px;
+  border-radius:50%;
+  background:black;
+  color:white;
+  font-size:30px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  cursor:pointer;
 }
 
 .modal{
-position:fixed;
-inset:0;
-background:rgba(0,0,0,0.3);
-backdrop-filter:blur(10px);
-display:none;
-align-items:center;
-justify-content:center;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.35);
+  display:none;
+  justify-content:center;
+  align-items:center;
 }
 
 .modal-content{
-background:white;
-border-radius:28px;
-padding:20px;
-width:90%;
-max-width:400px;
+  background:white;
+  width:90%;
+  border-radius:24px;
+  padding:22px;
 }
 
-input, textarea{
-width:100%;
-padding:12px;
-margin-top:10px;
-border-radius:12px;
-border:1px solid #ddd;
-font-size:16px;
-box-sizing:border-box;
+input,textarea{
+  width:100%;
+  padding:12px;
+  margin-bottom:12px;
+  border-radius:14px;
+  border:1px solid #ddd;
+  font-size:14px;
+  box-sizing:border-box;
 }
 
-textarea{
-resize:none;
-height:100px;
+.save-btn{
+  width:100%;
+  padding:13px;
+  border:none;
+  border-radius:16px;
+  background:black;
+  color:white;
+  font-size:15px;
 }
 
-button.save{
-margin-top:15px;
-padding:12px;
-width:100%;
-border-radius:16px;
-border:none;
-background:black;
-color:white;
-font-size:16px;
+.hidden{
+  display:none;
 }
 </style>
 </head>
 
 <body>
 
-<h1>Calendar</h1>
-<div id="list"></div>
-<button class="add-btn" onclick="openModal()">+</button>
+<header>
+  일정
+  <div class="menu-btn" onclick="togglePast()">☰</div>
+</header>
+
+<div class="container" id="activeList"></div>
+<div class="container hidden" id="pastList"></div>
+
+<div class="fab" onclick="openModal()">+</div>
 
 <div class="modal" id="modal">
-<div class="modal-content">
-<h2>새 일정</h2>
-<input type="text" id="title" placeholder="제목">
-<input type="time" id="time">
-<textarea id="memo" placeholder="메모"></textarea>
-<button class="save" onclick="saveEvent()">저장</button>
-</div>
+  <div class="modal-content">
+    <h3>새 일정</h3>
+    <input type="text" id="title" placeholder="제목">
+    <input type="date" id="date">
+    <input type="time" id="time">
+    <textarea id="memo" placeholder="메모"></textarea>
+    <button class="save-btn" onclick="saveEvent()">저장</button>
+  </div>
 </div>
 
 <script>
-let events = JSON.parse(localStorage.getItem("events")) || [];
+let events = JSON.parse(localStorage.getItem("events") || "[]");
 
-const colors=[
-"#B8A8FF",
-"#EADFC8",
-"#FF8C5A",
-"#FFD966",
-"#A0E7E5",
-"#F9C5D1"
+const pastelColors = [
+"#FFD6E0","#FFE5B4","#FFF3B0","#E0F7FA","#D0F0C0",
+"#E8EAF6","#F3E5F5","#FDE2E4","#E4F9F5","#F9FBE7",
+"#FCE4EC","#E1F5FE","#FFF8E1","#EDE7F6","#E8F5E9",
+"#FBE9E7","#F1F8E9","#E3F2FD","#FFF0F6","#F0F4FF"
 ];
 
-function getTimeLeft(time){
-const now=new Date();
-const [h,m]=time.split(":");
-const target=new Date();
-target.setHours(h,m,0);
-const diff=target-now;
-
-if(diff<=0) return "지난 일정";
-
-const hours=Math.floor(diff/3600000);
-const mins=Math.floor((diff%3600000)/60000);
-return hours+"h "+mins+"m left";
+function saveToStorage(){
+  localStorage.setItem("events",JSON.stringify(events));
 }
 
 function render(){
-const list=document.getElementById("list");
-list.innerHTML="";
+  const now = new Date();
+  const activeList = document.getElementById("activeList");
+  const pastList = document.getElementById("pastList");
 
-events.sort((a,b)=>a.time.localeCompare(b.time));
+  activeList.innerHTML="";
+  pastList.innerHTML="";
 
-events.forEach((event,index)=>{
-const card=document.createElement("div");
-card.className="card";
-card.style.background=event.color;
+  events.forEach((e,i)=>{
+    const eventDate = new Date(e.date+"T"+e.time);
+    const isPast = eventDate < now;
 
-card.innerHTML=`
-<div class="time-row">
-<span>${event.time}</span>
-<span>${getTimeLeft(event.time)}</span>
-</div>
-<div class="title">${event.title}</div>
-`;
+    const card = document.createElement("div");
+    card.className="card";
+    card.style.background = e.color;
 
-card.onclick=()=>{
-alert(event.memo||"메모 없음");
-};
+    card.innerHTML=`
+      <div class="card-header" onclick="toggleBody(this)">
+        <div>
+          <div class="card-title">${e.title}</div>
+          <div class="card-time">${e.date} ${e.time}</div>
+        </div>
+      </div>
+      <div class="card-body">
+        ${e.memo || ""}
+        <div class="delete-btn" onclick="deleteEvent(${i})">삭제</div>
+      </div>
+    `;
 
-list.appendChild(card);
-});
+    if(isPast){
+      pastList.appendChild(card);
+    }else{
+      activeList.appendChild(card);
+    }
+  });
+}
+
+function toggleBody(el){
+  const body = el.parentElement.querySelector(".card-body");
+  body.style.display = body.style.display==="block"?"none":"block";
+}
+
+function deleteEvent(i){
+  events.splice(i,1);
+  saveToStorage();
+  render();
 }
 
 function openModal(){
-document.getElementById("modal").style.display="flex";
+  document.getElementById("modal").style.display="flex";
 }
 
 function saveEvent(){
-const title=document.getElementById("title").value.trim();
-const time=document.getElementById("time").value;
-const memo=document.getElementById("memo").value;
+  const title=document.getElementById("title").value;
+  const date=document.getElementById("date").value;
+  const time=document.getElementById("time").value;
+  const memo=document.getElementById("memo").value;
 
-if(!title||!time){
-alert("제목과 시간을 입력하세요");
-return;
+  if(!title || !date || !time) return;
+
+  const randomColor = pastelColors[Math.floor(Math.random()*pastelColors.length)];
+
+  events.push({title,date,time,memo,color:randomColor});
+  saveToStorage();
+  document.getElementById("modal").style.display="none";
+  render();
 }
 
-events.push({
-title,
-time,
-memo,
-color:colors[Math.floor(Math.random()*colors.length)]
-});
-
-localStorage.setItem("events",JSON.stringify(events));
-
-document.getElementById("modal").style.display="none";
-document.getElementById("title").value="";
-document.getElementById("time").value="";
-document.getElementById("memo").value="";
-
-render();
+function togglePast(){
+  document.getElementById("pastList").classList.toggle("hidden");
 }
 
 render();
-setInterval(render,60000);
 </script>
 
 </body>
