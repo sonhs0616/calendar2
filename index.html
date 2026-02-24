@@ -3,236 +3,215 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>My Calendar</title>
+<title>Calendaer</title>
 
 <style>
-body{
+body {
   margin:0;
-  font-family:-apple-system,BlinkMacSystemFont;
+  font-family:-apple-system, BlinkMacSystemFont;
   background:#f2f2f7;
-}
-
-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
   padding:20px;
-  font-weight:600;
-  font-size:20px;
 }
 
-.menu-btn{
-  font-size:22px;
-  cursor:pointer;
+h1 {
+  text-align:center;
+  margin-bottom:5px;
 }
 
-.container{
-  padding:15px;
-}
-
-.card{
-  border-radius:20px;
-  padding:16px;
-  margin-bottom:12px;
-  transition:0.25s;
-}
-
-.card-header{
+.top-bar {
   display:flex;
   justify-content:space-between;
   align-items:center;
-  cursor:pointer;
 }
 
-.card-title{
+.mode-title {
+  text-align:center;
   font-weight:600;
-  font-size:16px;
+  margin-bottom:10px;
 }
 
-.card-time{
-  font-size:13px;
-  opacity:0.6;
+button {
+  padding:10px;
+  border-radius:12px;
+  border:none;
+  font-weight:600;
 }
 
-.card-body{
-  margin-top:12px;
-  display:none;
-  font-size:14px;
-  opacity:0.85;
-}
-
-.delete-btn{
-  margin-top:12px;
-  color:#ff3b30;
-  font-size:13px;
-  cursor:pointer;
-}
-
-.fab{
-  position:fixed;
-  bottom:25px;
-  right:25px;
-  width:58px;
-  height:58px;
-  border-radius:50%;
-  background:black;
-  color:white;
-  font-size:30px;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  cursor:pointer;
-}
-
-.modal{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.35);
-  display:none;
-  justify-content:center;
-  align-items:center;
-}
-
-.modal-content{
-  background:white;
-  width:90%;
-  border-radius:24px;
-  padding:22px;
-}
-
-input,textarea{
+input, textarea {
   width:100%;
-  padding:12px;
-  margin-bottom:12px;
-  border-radius:14px;
-  border:1px solid #ddd;
-  font-size:14px;
+  padding:10px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  margin-bottom:10px;
+  font-size:16px;
   box-sizing:border-box;
 }
 
-.save-btn{
-  width:100%;
-  padding:13px;
-  border:none;
-  border-radius:16px;
-  background:black;
-  color:white;
-  font-size:15px;
+textarea {
+  resize:none;
+  height:80px;
 }
 
-.hidden{
+.card {
+  border-radius:20px;
+  padding:20px;
+  margin-bottom:15px;
+  color:white;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+.card.expanded {
+  transform:scale(1.02);
+}
+
+.card small {
+  opacity:0.8;
+}
+
+.detail {
+  margin-top:10px;
   display:none;
+}
+
+.card.expanded .detail {
+  display:block;
+}
+
+.delete-btn {
+  background:white;
+  color:black;
+  margin-top:10px;
 }
 </style>
 </head>
-
 <body>
 
-<header>
-  일정
-  <div class="menu-btn" onclick="togglePast()">☰</div>
-</header>
-
-<div class="container" id="activeList"></div>
-<div class="container hidden" id="pastList"></div>
-
-<div class="fab" onclick="openModal()">+</div>
-
-<div class="modal" id="modal">
-  <div class="modal-content">
-    <h3>새 일정</h3>
-    <input type="text" id="title" placeholder="제목">
-    <input type="date" id="date">
-    <input type="time" id="time">
-    <textarea id="memo" placeholder="메모"></textarea>
-    <button class="save-btn" onclick="saveEvent()">저장</button>
-  </div>
+<div class="top-bar">
+  <h1>Calendaer</h1>
+  <button onclick="togglePast()">🗂️</button>
 </div>
 
-<script>
-let events = JSON.parse(localStorage.getItem("events") || "[]");
+<div id="modeTitle" class="mode-title"></div>
 
-const pastelColors = [
-"#FFD6E0","#FFE5B4","#FFF3B0","#E0F7FA","#D0F0C0",
-"#E8EAF6","#F3E5F5","#FDE2E4","#E4F9F5","#F9FBE7",
-"#FCE4EC","#E1F5FE","#FFF8E1","#EDE7F6","#E8F5E9",
-"#FBE9E7","#F1F8E9","#E3F2FD","#FFF0F6","#F0F4FF"
+<div>
+  <label>날짜 선택</label>
+  <input type="date" id="date">
+  
+  <label>시간 선택 (24시간제)</label>
+  <input type="time" id="time">
+  
+  <label>제목</label>
+  <input type="text" id="title" placeholder="일정 제목">
+  
+  <label>메모</label>
+  <textarea id="memo" placeholder="메모 입력"></textarea>
+  
+  <button onclick="addSchedule()">추가</button>
+</div>
+
+<hr>
+
+<div id="scheduleList"></div>
+
+<script>
+let schedules = JSON.parse(localStorage.getItem("schedules") || "[]");
+let showPast = false;
+
+const colors = [
+"#0A84FF","#30D158","#FF9F0A","#FF375F",
+"#BF5AF2","#64D2FF","#FF453A","#32D74B"
 ];
 
-function saveToStorage(){
-  localStorage.setItem("events",JSON.stringify(events));
+function randomColor(){
+  return colors[Math.floor(Math.random()*colors.length)];
 }
 
-function render(){
-  const now = new Date();
-  const activeList = document.getElementById("activeList");
-  const pastList = document.getElementById("pastList");
+function save(){
+  localStorage.setItem("schedules", JSON.stringify(schedules));
+}
 
-  activeList.innerHTML="";
-  pastList.innerHTML="";
+function addSchedule(){
+  const date = document.getElementById("date").value;
+  const time = document.getElementById("time").value;
+  const title = document.getElementById("title").value;
+  const memo = document.getElementById("memo").value;
 
-  events.forEach((e,i)=>{
-    const eventDate = new Date(e.date+"T"+e.time);
-    const isPast = eventDate < now;
+  if(!date || !time || !title) return;
 
-    const card = document.createElement("div");
-    card.className="card";
-    card.style.background = e.color;
-
-    card.innerHTML=`
-      <div class="card-header" onclick="toggleBody(this)">
-        <div>
-          <div class="card-title">${e.title}</div>
-          <div class="card-time">${e.date} ${e.time}</div>
-        </div>
-      </div>
-      <div class="card-body">
-        ${e.memo || ""}
-        <div class="delete-btn" onclick="deleteEvent(${i})">삭제</div>
-      </div>
-    `;
-
-    if(isPast){
-      pastList.appendChild(card);
-    }else{
-      activeList.appendChild(card);
-    }
+  schedules.push({
+    id:Date.now(),
+    date,time,title,memo,
+    color:randomColor()
   });
-}
 
-function toggleBody(el){
-  const body = el.parentElement.querySelector(".card-body");
-  body.style.display = body.style.display==="block"?"none":"block";
-}
-
-function deleteEvent(i){
-  events.splice(i,1);
-  saveToStorage();
+  save();
   render();
 }
 
-function openModal(){
-  document.getElementById("modal").style.display="flex";
-}
-
-function saveEvent(){
-  const title=document.getElementById("title").value;
-  const date=document.getElementById("date").value;
-  const time=document.getElementById("time").value;
-  const memo=document.getElementById("memo").value;
-
-  if(!title || !date || !time) return;
-
-  const randomColor = pastelColors[Math.floor(Math.random()*pastelColors.length)];
-
-  events.push({title,date,time,memo,color:randomColor});
-  saveToStorage();
-  document.getElementById("modal").style.display="none";
+function deleteSchedule(id){
+  schedules = schedules.filter(s=>s.id!==id);
+  save();
   render();
 }
 
 function togglePast(){
-  document.getElementById("pastList").classList.toggle("hidden");
+  showPast = !showPast;
+  render();
+}
+
+function render(){
+  const list = document.getElementById("scheduleList");
+  const modeTitle = document.getElementById("modeTitle");
+  list.innerHTML="";
+
+  const now = new Date();
+  const todayString = now.toLocaleDateString("ko-KR", {
+    year:"numeric", month:"long", day:"numeric", weekday:"long"
+  });
+
+  if(showPast){
+    modeTitle.innerText="지난 일정";
+  } else {
+    modeTitle.innerText=todayString;
+  }
+
+  schedules
+  .sort((a,b)=> new Date(a.date+" "+a.time) - new Date(b.date+" "+b.time))
+  .forEach(s=>{
+    const scheduleDate = new Date(s.date+" "+s.time);
+    const isPast = scheduleDate < now;
+
+    if(showPast !== isPast) return;
+
+    const remainMs = scheduleDate - now;
+    let remainText="";
+    if(!isPast){
+      const hours = Math.floor(remainMs/1000/60/60);
+      remainText = ` · ${hours}시간 남음`;
+    }
+
+    const card = document.createElement("div");
+    card.className="card";
+    card.style.background=s.color;
+
+    card.innerHTML=`
+      <div>
+        <strong>${s.time}</strong> ${s.title}
+        <small>${remainText}</small>
+      </div>
+      <div class="detail">
+        <p>${s.memo||""}</p>
+        <button class="delete-btn" onclick="event.stopPropagation();deleteSchedule(${s.id})">삭제</button>
+      </div>
+    `;
+
+    card.onclick=()=>{
+      card.classList.toggle("expanded");
+    };
+
+    list.appendChild(card);
+  });
 }
 
 render();
