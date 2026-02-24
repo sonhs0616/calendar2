@@ -6,26 +6,10 @@
 <title>My Calendar</title>
 
 <style>
-:root{
-  --bg:#f2f2f7;
-  --text:#111;
-  --cardText:#111;
-}
-
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#000;
-    --text:#fff;
-    --cardText:#000;
-  }
-}
-
 body{
   margin:0;
   font-family:-apple-system,BlinkMacSystemFont;
-  background:var(--bg);
-  color:var(--text);
-  transition:0.3s;
+  background:#f2f2f7;
 }
 
 header{
@@ -37,16 +21,27 @@ header{
   font-size:20px;
 }
 
+.menu-btn{
+  font-size:22px;
+  cursor:pointer;
+}
+
 .container{
   padding:15px;
 }
 
 .card{
-  border-radius:22px;
-  padding:18px;
-  margin-bottom:14px;
-  transition:all 0.35s ease;
-  overflow:hidden;
+  border-radius:20px;
+  padding:16px;
+  margin-bottom:12px;
+  transition:0.25s;
+}
+
+.card-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:pointer;
 }
 
 .card-title{
@@ -56,24 +51,18 @@ header{
 
 .card-time{
   font-size:13px;
-  opacity:0.7;
+  opacity:0.6;
 }
 
 .card-body{
-  max-height:0;
-  overflow:hidden;
-  transition:max-height 0.4s ease;
-  margin-top:0;
-  font-size:14px;
-}
-
-.card.expanded .card-body{
-  max-height:200px;
   margin-top:12px;
+  display:none;
+  font-size:14px;
+  opacity:0.85;
 }
 
 .delete-btn{
-  margin-top:10px;
+  margin-top:12px;
   color:#ff3b30;
   font-size:13px;
   cursor:pointer;
@@ -86,7 +75,7 @@ header{
   width:58px;
   height:58px;
   border-radius:50%;
-  background:#007aff;
+  background:black;
   color:white;
   font-size:30px;
   display:flex;
@@ -98,7 +87,7 @@ header{
 .modal{
   position:fixed;
   inset:0;
-  background:rgba(0,0,0,0.4);
+  background:rgba(0,0,0,0.35);
   display:none;
   justify-content:center;
   align-items:center;
@@ -111,7 +100,7 @@ header{
   padding:22px;
 }
 
-input,textarea,select{
+input,textarea{
   width:100%;
   padding:12px;
   margin-bottom:12px;
@@ -126,7 +115,7 @@ input,textarea,select{
   padding:13px;
   border:none;
   border-radius:16px;
-  background:#007aff;
+  background:black;
   color:white;
   font-size:15px;
 }
@@ -141,7 +130,7 @@ input,textarea,select{
 
 <header>
   일정
-  <div onclick="togglePast()">☰</div>
+  <div class="menu-btn" onclick="togglePast()">☰</div>
 </header>
 
 <div class="container" id="activeList"></div>
@@ -155,11 +144,6 @@ input,textarea,select{
     <input type="text" id="title" placeholder="제목">
     <input type="date" id="date">
     <input type="time" id="time">
-    <select id="repeat">
-      <option value="none">반복 없음</option>
-      <option value="daily">매일</option>
-      <option value="weekly">매주</option>
-    </select>
     <textarea id="memo" placeholder="메모"></textarea>
     <button class="save-btn" onclick="saveEvent()">저장</button>
   </div>
@@ -168,80 +152,87 @@ input,textarea,select{
 <script>
 let events = JSON.parse(localStorage.getItem("events") || "[]");
 
-const colors=[
+const pastelColors = [
 "#FFD6E0","#FFE5B4","#FFF3B0","#E0F7FA","#D0F0C0",
 "#E8EAF6","#F3E5F5","#FDE2E4","#E4F9F5","#F9FBE7",
-"#FCE4EC","#E1F5FE","#FFF8E1","#EDE7F6","#E8F5E9"
+"#FCE4EC","#E1F5FE","#FFF8E1","#EDE7F6","#E8F5E9",
+"#FBE9E7","#F1F8E9","#E3F2FD","#FFF0F6","#F0F4FF"
 ];
 
-function saveStorage(){
+function saveToStorage(){
   localStorage.setItem("events",JSON.stringify(events));
 }
 
 function render(){
-  const now=new Date();
-  const active=document.getElementById("activeList");
-  const past=document.getElementById("pastList");
-  active.innerHTML="";
-  past.innerHTML="";
+  const now = new Date();
+  const activeList = document.getElementById("activeList");
+  const pastList = document.getElementById("pastList");
 
-  events.sort((a,b)=>{
-    return new Date(a.date+"T"+a.time) - new Date(b.date+"T"+b.time);
-  });
+  activeList.innerHTML="";
+  pastList.innerHTML="";
 
   events.forEach((e,i)=>{
-    const eventDate=new Date(e.date+"T"+e.time);
-    const isPast=eventDate<now;
+    const eventDate = new Date(e.date+"T"+e.time);
+    const isPast = eventDate < now;
 
-    const card=document.createElement("div");
+    const card = document.createElement("div");
     card.className="card";
-    card.style.background=e.color;
-    card.style.color="var(--cardText)";
-    card.onclick=()=>card.classList.toggle("expanded");
+    card.style.background = e.color;
 
     card.innerHTML=`
-      <div class="card-title">${e.title}</div>
-      <div class="card-time">${e.date} ${e.time}</div>
+      <div class="card-header" onclick="toggleBody(this)">
+        <div>
+          <div class="card-title">${e.title}</div>
+          <div class="card-time">${e.date} ${e.time}</div>
+        </div>
+      </div>
       <div class="card-body">
-        ${e.memo||""}
-        <div class="delete-btn" onclick="event.stopPropagation();deleteEvent(${i})">삭제</div>
+        ${e.memo || ""}
+        <div class="delete-btn" onclick="deleteEvent(${i})">삭제</div>
       </div>
     `;
 
-    if(isPast) past.appendChild(card);
-    else active.appendChild(card);
+    if(isPast){
+      pastList.appendChild(card);
+    }else{
+      activeList.appendChild(card);
+    }
   });
 }
 
-function saveEvent(){
-  const title=title.value;
-  const date=date.value;
-  const time=time.value;
-  const repeat=repeat.value;
-  const memo=memo.value;
-
-  if(!title||!date||!time) return;
-
-  const color=colors[Math.floor(Math.random()*colors.length)];
-
-  events.push({title,date,time,repeat,memo,color});
-  saveStorage();
-  modal.style.display="none";
-  render();
+function toggleBody(el){
+  const body = el.parentElement.querySelector(".card-body");
+  body.style.display = body.style.display==="block"?"none":"block";
 }
 
 function deleteEvent(i){
   events.splice(i,1);
-  saveStorage();
+  saveToStorage();
   render();
 }
 
 function openModal(){
-  modal.style.display="flex";
+  document.getElementById("modal").style.display="flex";
+}
+
+function saveEvent(){
+  const title=document.getElementById("title").value;
+  const date=document.getElementById("date").value;
+  const time=document.getElementById("time").value;
+  const memo=document.getElementById("memo").value;
+
+  if(!title || !date || !time) return;
+
+  const randomColor = pastelColors[Math.floor(Math.random()*pastelColors.length)];
+
+  events.push({title,date,time,memo,color:randomColor});
+  saveToStorage();
+  document.getElementById("modal").style.display="none";
+  render();
 }
 
 function togglePast(){
-  pastList.classList.toggle("hidden");
+  document.getElementById("pastList").classList.toggle("hidden");
 }
 
 render();
